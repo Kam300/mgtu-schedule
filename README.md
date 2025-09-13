@@ -20,11 +20,14 @@ Telegram Mini App для скачивания расписаний СПО МГТ
 ### Ручная настройка
 1. Подключите репозиторий к Render
 2. Выберите тип сервиса "Web Service"
-3. Укажите следующие настройки:
+3. **ВАЖНО**: Оставьте поле "Publish Directory" ПУСТЫМ (не указывайте app.py)
+4. Укажите следующие настройки:
    - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `gunicorn --bind 0.0.0.0:$PORT wsgi:app`
+   - **Start Command**: `gunicorn --bind 0.0.0.0:$PORT app:app`
    - **Python Version**: 3.11.0
-   - **Environment**: `FLASK_ENV=production`
+   - **Environment Variables**: 
+     - `FLASK_ENV=production`
+     - `PYTHON_VERSION=3.11.0`
 
 ## Локальный запуск
 
