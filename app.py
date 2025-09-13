@@ -1137,9 +1137,13 @@ def download_file(file_index):
 
 
 if __name__ == '__main__':
+    import os
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_ENV') != 'production'
+    
     print("🚀 Запуск Telegram Mini App для расписаний СПО МГТУ")
     print("📱 Оптимизировано для Telegram WebApp")
-    print("🌐 Откройте http://localhost:5000 в браузере")
+    print(f"🌐 Откройте http://localhost:{port} в браузере")
     print("=" * 60)
 
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=debug, host='0.0.0.0', port=port)
