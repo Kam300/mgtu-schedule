@@ -727,23 +727,74 @@ INDEX_TEMPLATE = '''
                 progressFill.style.width = progress + '%';
             }, 200);
 
-            // Download file
-            window.location.href = `/download/${fileIndex}`;
+            // Download file using fetch and blob
+            fetch(`/download/${fileIndex}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    // Get filename from response headers or use default
+                    const contentDisposition = response.headers.get('Content-Disposition');
+                    let filename = 'schedule.xlsx';
+                    if (contentDisposition) {
+                        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+                        if (filenameMatch) {
+                            filename = filenameMatch[1];
+                        }
+                    }
+                    
+                    return response.blob().then(blob => ({ blob, filename }));
+                })
+                .then(({ blob, filename }) => {
+                    // Create download link
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
 
-            // Complete after 3 seconds
-            setTimeout(() => {
-                clearInterval(progressInterval);
-                progressFill.style.width = '100%';
+                    // Complete progress
+                    clearInterval(progressInterval);
+                    progressFill.style.width = '100%';
 
-                setTimeout(() => {
-                    button.disabled = false;
-                    button.innerHTML = '<i class="fas fa-download"></i> Скачать';
-                    progressBar.style.display = 'none';
-                    progressFill.style.width = '0%';
+                    setTimeout(() => {
+                        button.disabled = false;
+                        button.innerHTML = '<i class="fas fa-download"></i> Скачать';
+                        progressBar.style.display = 'none';
+                        progressFill.style.width = '0%';
 
-                    showAlert('Файл загружен!');
-                }, 1000);
-            }, 3000);
+                        showAlert('Файл загружен!');
+                    }, 1000);
+                })
+                .catch(error => {
+                    console.error('Download error:', error);
+                    clearInterval(progressInterval);
+                    
+                    // Fallback: try direct download
+                    try {
+                        window.open(`/download/${fileIndex}`, '_blank');
+                        
+                        setTimeout(() => {
+                            button.disabled = false;
+                            button.innerHTML = '<i class="fas fa-download"></i> Скачать';
+                            progressBar.style.display = 'none';
+                            progressFill.style.width = '0%';
+                            showAlert('Файл загружен!');
+                        }, 1000);
+                    } catch (fallbackError) {
+                        console.error('Fallback download error:', fallbackError);
+                        button.disabled = false;
+                        button.innerHTML = '<i class="fas fa-download"></i> Скачать';
+                        progressBar.style.display = 'none';
+                        progressFill.style.width = '0%';
+                        showAlert('Ошибка при скачивании файла. Попробуйте еще раз.');
+                    }
+                });
         }
 
         // Event listeners
@@ -1075,7 +1126,12 @@ def download_file(file_index):
     local_path = scraper.download_file(file_info['url'], filename)
 
     if local_path and os.path.exists(local_path):
-        return send_file(local_path, as_attachment=True, download_name=filename)
+        return send_file(
+            local_path, 
+            as_attachment=True, 
+            download_name=filename,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
     else:
         return "Ошибка при скачивании файла", 500
 
