@@ -440,6 +440,12 @@ INDEX_TEMPLATE = '''
                 <strong>Источники:</strong> Прямые ссылки на отделения СПО и замены по семестрам
             </div>
 
+            <!-- Мобильная информация -->
+            <div id="mobileInfo" class="alert-info" style="display: none; background: rgba(255, 193, 7, 0.1); border-color: rgba(255, 193, 7, 0.2);">
+                <i class="fas fa-mobile-alt"></i>
+                <strong>Для мобильных устройств:</strong> Используйте кнопку "Поделиться" для получения прямой ссылки на файл, или файл будет отправлен в чат с ботом.
+            </div>
+
             <!-- Кнопка сканирования -->
             <button id="scanBtn" class="btn-primary">
                 <i class="fas fa-search"></i>
@@ -531,6 +537,12 @@ INDEX_TEMPLATE = '''
         // Get user info
         const user = tg.initDataUnsafe.user;
         console.log('Telegram user:', user);
+
+        // Show mobile info if on mobile device
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isMobile) {
+            document.getElementById('mobileInfo').style.display = 'block';
+        }
 
         // App variables
         let allFiles = [];
@@ -682,6 +694,9 @@ INDEX_TEMPLATE = '''
                                 <button class="btn-download" onclick="downloadFile(${file.globalIndex})">
                                     <i class="fas fa-download"></i> Скачать
                                 </button>
+                                <button class="btn-download" onclick="shareFile(${file.globalIndex})" style="margin-left: 8px; background: #0088cc;">
+                                    <i class="fas fa-share"></i> Поделиться
+                                </button>
                             </div>
                             <div class="progress-bar" id="progress_${file.globalIndex}" style="display: none;">
                                 <div class="progress-fill"></div>
@@ -727,7 +742,37 @@ INDEX_TEMPLATE = '''
                 progressFill.style.width = progress + '%';
             }, 200);
 
-            // Download file using fetch and blob
+            // Check if we're in Telegram WebApp
+            const isTelegramWebApp = window.Telegram && window.Telegram.WebApp;
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+            // For Telegram WebApp on mobile, use alternative method
+            if (isTelegramWebApp && isMobile) {
+                // Send request to bot to send file directly
+                clearInterval(progressInterval);
+                progressFill.style.width = '100%';
+                
+                setTimeout(() => {
+                    button.disabled = false;
+                    button.innerHTML = '<i class="fas fa-download"></i> Скачать';
+                    progressBar.style.display = 'none';
+                    progressFill.style.width = '0%';
+
+                    // Request file from bot
+                    if (tg.sendData) {
+                        tg.sendData(JSON.stringify({
+                            action: 'request_file',
+                            file_index: fileIndex,
+                            user_id: user ? user.id : null
+                        }));
+                    }
+
+                    showAlert('Файл будет отправлен вам в чате с ботом!');
+                }, 1000);
+                return;
+            }
+
+            // Standard download for desktop and non-Telegram browsersашч
             fetch(`/download/${fileIndex}`)
                 .then(response => {
                     if (!response.ok) {
@@ -785,9 +830,16 @@ INDEX_TEMPLATE = '''
                     console.error('Download error:', error);
                     clearInterval(progressInterval);
                     
-                    // Fallback: try direct download
+                    // Fallback: open in new tab
                     try {
-                        window.open(`/download/${fileIndex}`, '_blank');
+                        const downloadUrl = `/download/${fileIndex}`;
+                        if (isTelegramWebApp) {
+                            // For Telegram WebApp, try to open external link
+                            tg.openLink(downloadUrl);
+                        } else {
+                            // For regular browsers
+                            window.open(downloadUrl, '_blank');
+                        }
                         
                         setTimeout(() => {
                             button.disabled = false;
@@ -795,17 +847,7 @@ INDEX_TEMPLATE = '''
                             progressBar.style.display = 'none';
                             progressFill.style.width = '0%';
                             
-                            // Отправляем данные боту о скачанном файле (fallback)
-                            if (tg.sendData) {
-                                tg.sendData(JSON.stringify({
-                                    action: 'file_downloaded',
-                                    filename: 'schedule.xlsx',
-                                    file_index: fileIndex,
-                                    user_id: user ? user.id : null
-                                }));
-                            }
-                            
-                            showAlert('Файл загружен!');
+                            showAlert('Файл открыт в новой вкладке!');
                         }, 1000);
                     } catch (fallbackError) {
                         console.error('Fallback download error:', fallbackError);
@@ -816,6 +858,49 @@ INDEX_TEMPLATE = '''
                         showAlert('Ошибка при скачивании файла. Попробуйте еще раз.');
                     }
                 });
+        }
+
+        function shareFile(fileIndex) {
+            const downloadUrl = `${window.location.origin}/download/${fileIndex}`;
+            
+            // Check if we're in Telegram WebApp
+            const isTelegramWebApp = window.Telegram && window.Telegram.WebApp;
+            
+            if (isTelegramWebApp) {
+                // Use Telegram WebApp share functionality
+                if (tg.openLink) {
+                    tg.openLink(downloadUrl);
+                } else {
+                    // Fallback: copy to clipboard
+                    copyToClipboard(downloadUrl);
+                    showAlert('Ссылка скопирована в буфер обмена!');
+                }
+            } else if (navigator.share) {
+                // Use Web Share API if available
+                navigator.share({
+                    title: 'Расписание МГТУ',
+                    text: 'Скачать файл расписания',
+                    url: downloadUrl
+                }).catch(console.error);
+            } else {
+                // Fallback: copy to clipboard
+                copyToClipboard(downloadUrl);
+                showAlert('Ссылка скопирована в буфер обмена!');
+            }
+        }
+
+        function copyToClipboard(text) {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text);
+            } else {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+            }
         }
 
         // Event listeners

@@ -87,6 +87,27 @@ async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE
                 f"📥 Файл '{filename}' успешно загружен!\n"
                 f"🔍 Проверьте папку загрузок вашего устройства."
             )
+        elif app_data.get('action') == 'request_file':
+            file_index = app_data.get('file_index')
+            user_id = app_data.get('user_id')
+            
+            if file_index is not None:
+                # Send file to user
+                try:
+                    import requests
+                    download_url = f"{WEB_APP_URL}/download/{file_index}"
+                    
+                    await update.message.reply_text(
+                        f"📤 Отправляю файл...\n"
+                        f"🔗 Ссылка для скачивания: {download_url}\n\n"
+                        f"💡 Нажмите на ссылку, чтобы скачать файл."
+                    )
+                except Exception as e:
+                    logger.error(f"Ошибка при отправке файла: {e}")
+                    await update.message.reply_text(
+                        f"❌ Ошибка при получении файла.\n"
+                        f"🔗 Попробуйте скачать напрямую: {WEB_APP_URL}/download/{file_index}"
+                    )
     except Exception as e:
         logger.error(f"Ошибка обработки данных WebApp: {e}")
         await update.message.reply_text(
