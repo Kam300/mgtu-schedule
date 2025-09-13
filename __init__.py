@@ -1,0 +1,1 @@
+# MGTU Schedule Downloader Package
