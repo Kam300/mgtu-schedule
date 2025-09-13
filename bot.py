@@ -9,9 +9,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Замените на ваш токен бота
-BOT_TOKEN = ""
+BOT_TOKEN = "7808052232:AAEe0RDB5JLwxFCEAsjw8NE02RSB8yxMwMw"  # Получите токен у @BotFather
 # Замените на URL вашего размещенного приложения
-WEB_APP_URL = "http://localhost:5000"
+WEB_APP_URL = "https://mgtu-schedule.onrender.com"  # Ваш URL на Render
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -78,10 +78,20 @@ async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE
             files_count = app_data.get('files_count', 0)
             await update.message.reply_text(
                 f"✅ Сканирование завершено!\n"
-                f"Найдено файлов: {files_count}"
+                f"Найдено файлов: {files_count}\n\n"
+                f"💡 Используйте кнопки 'Скачать' в приложении для загрузки файлов."
+            )
+        elif app_data.get('action') == 'file_downloaded':
+            filename = app_data.get('filename', 'файл')
+            await update.message.reply_text(
+                f"📥 Файл '{filename}' успешно загружен!\n"
+                f"🔍 Проверьте папку загрузок вашего устройства."
             )
     except Exception as e:
         logger.error(f"Ошибка обработки данных WebApp: {e}")
+        await update.message.reply_text(
+            "❌ Произошла ошибка при обработке данных из приложения."
+        )
 
 
 def main() -> None:

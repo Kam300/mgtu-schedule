@@ -768,6 +768,16 @@ INDEX_TEMPLATE = '''
                         progressBar.style.display = 'none';
                         progressFill.style.width = '0%';
 
+                        // Отправляем данные боту о скачанном файле
+                        if (tg.sendData) {
+                            tg.sendData(JSON.stringify({
+                                action: 'file_downloaded',
+                                filename: filename,
+                                file_index: fileIndex,
+                                user_id: user ? user.id : null
+                            }));
+                        }
+
                         showAlert('Файл загружен!');
                     }, 1000);
                 })
@@ -784,6 +794,17 @@ INDEX_TEMPLATE = '''
                             button.innerHTML = '<i class="fas fa-download"></i> Скачать';
                             progressBar.style.display = 'none';
                             progressFill.style.width = '0%';
+                            
+                            // Отправляем данные боту о скачанном файле (fallback)
+                            if (tg.sendData) {
+                                tg.sendData(JSON.stringify({
+                                    action: 'file_downloaded',
+                                    filename: 'schedule.xlsx',
+                                    file_index: fileIndex,
+                                    user_id: user ? user.id : null
+                                }));
+                            }
+                            
                             showAlert('Файл загружен!');
                         }, 1000);
                     } catch (fallbackError) {
